@@ -211,7 +211,7 @@ CREATE POLICY admin_escolar_matriculas ON matriculas
 CREATE POLICY admin_global_matriculas ON matriculas
     FOR ALL USING (papel_atual() = 'admin_global');
 
---Questões_Leitura
+--Questões Leitura
 CREATE POLICY autenticado_ler_questoes ON questoes
     FOR SELECT USING (auth.uid() IS NOT NULL);
  
@@ -219,7 +219,7 @@ CREATE POLICY admin_global_questoes ON questoes
     FOR ALL USING (papel_atual() = 'admin_global');
 
 
--- sessoes_simulado
+-- sessoes simulado
 
 CREATE POLICY aluno_proprias_sessoes ON sessoes_simulado
     FOR ALL USING (aluno_id = auth.uid()) WITH CHECK (aluno_id = auth.uid());
@@ -237,7 +237,7 @@ CREATE POLICY admin_escolar_sessoes ON sessoes_simulado
 CREATE POLICY admin_global_sessoes ON sessoes_simulado
     FOR ALL USING (papel_atual() = 'admin_global');
  
--- respostas_alunos
+-- respostas alunos
 
 CREATE POLICY aluno_proprias_respostas ON respostas_alunos
     FOR ALL
