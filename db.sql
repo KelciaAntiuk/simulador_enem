@@ -217,3 +217,49 @@ CREATE POLICY autenticado_ler_questoes ON questoes
  
 CREATE POLICY admin_global_questoes ON questoes
     FOR ALL USING (papel_atual() = 'admin_global');
+
+
+-- sessoes_simulado
+
+CREATE POLICY aluno_proprias_sessoes ON sessoes_simulado
+    FOR ALL USING (aluno_id = auth.uid()) WITH CHECK (aluno_id = auth.uid());
+ 
+CREATE POLICY admin_escolar_sessoes ON sessoes_simulado
+    FOR SELECT USING (
+        papel_atual() = 'admin_escolar'
+        AND EXISTS (
+            SELECT 1 FROM matriculas m
+            JOIN escolas e ON e.id = m.escola_id
+            WHERE m.aluno_id = sessoes_simulado.aluno_id AND e.admin_id = auth.uid()
+        )
+    );
+ 
+CREATE POLICY admin_global_sessoes ON sessoes_simulado
+    FOR ALL USING (papel_atual() = 'admin_global');
+ 
+-- respostas_alunos
+
+CREATE POLICY aluno_proprias_respostas ON respostas_alunos
+    FOR ALL
+    USING (EXISTS (
+        SELECT 1 FROM sessoes_simulado
+        WHERE id = respostas_alunos.sessao_id AND aluno_id = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM sessoes_simulado
+        WHERE id = respostas_alunos.sessao_id AND aluno_id = auth.uid()
+    ));
+ 
+CREATE POLICY admin_escolar_respostas ON respostas_alunos
+    FOR SELECT USING (
+        papel_atual() = 'admin_escolar'
+        AND EXISTS (
+            SELECT 1 FROM sessoes_simulado ss
+            JOIN matriculas m ON m.aluno_id = ss.aluno_id
+            JOIN escolas e    ON e.id = m.escola_id
+            WHERE ss.id = respostas_alunos.sessao_id AND e.admin_id = auth.uid()
+        )
+    );
+ 
+CREATE POLICY admin_global_respostas ON respostas_alunos
+    FOR ALL USING (papel_atual() = 'admin_global');
