@@ -168,3 +168,52 @@ SET search_path = public
 AS $$
     SELECT papel FROM perfis WHERE id = auth.uid();
 $$;
+
+--Perfis
+CREATE POLICY aluno_proprio_perfil ON perfis
+    FOR ALL USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+ 
+CREATE POLICY admin_escolar_ver_alunos ON perfis
+    FOR SELECT USING (
+        papel_atual() = 'admin_escolar'
+        AND EXISTS (
+            SELECT 1 FROM matriculas m
+            JOIN escolas e ON e.id = m.escola_id
+            WHERE m.aluno_id = perfis.id AND e.admin_id = auth.uid()
+        )
+    );
+
+CREATE POLICY admin_global_perfis ON perfis
+FOR ALL
+USING    (papel_atual() = 'admin_global')
+WITH CHECK (papel_atual() = 'admin_global');
+
+--Escolas
+CREATE POLICY admin_escolar_propria_escola ON escolas
+    FOR ALL USING (admin_id = auth.uid()) WITH CHECK (admin_id = auth.uid());
+ 
+CREATE POLICY admin_global_escolas ON escolas
+    FOR ALL USING (papel_atual() = 'admin_global');
+
+--Matrículas
+CREATE POLICY aluno_proprias_matriculas ON matriculas
+    FOR SELECT USING (aluno_id = auth.uid());
+ 
+CREATE POLICY admin_escolar_matriculas ON matriculas
+    FOR ALL
+    USING (EXISTS (
+        SELECT 1 FROM escolas WHERE id = matriculas.escola_id AND admin_id = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM escolas WHERE id = matriculas.escola_id AND admin_id = auth.uid()
+    ));
+ 
+CREATE POLICY admin_global_matriculas ON matriculas
+    FOR ALL USING (papel_atual() = 'admin_global');
+
+--Questões_Leitura
+CREATE POLICY autenticado_ler_questoes ON questoes
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+ 
+CREATE POLICY admin_global_questoes ON questoes
+    FOR ALL USING (papel_atual() = 'admin_global');
