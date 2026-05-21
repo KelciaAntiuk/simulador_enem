@@ -90,3 +90,81 @@ $$;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- TRIGGER: validar que admin da escola tem papel correto
+CREATE OR REPLACE FUNCTION verificar_papel_admin_escola()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM perfis
+        WHERE id = NEW.admin_id AND papel = 'admin_escolar'
+    ) THEN
+        RAISE EXCEPTION 'O admin da escola deve ter o papel admin_escolar';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER enforce_admin_escola
+    BEFORE INSERT OR UPDATE ON escolas
+    FOR EACH ROW EXECUTE FUNCTION verificar_papel_admin_escola();
+
+
+-- TRIGGER: atualizar contadores da sessão a cada resposta
+CREATE OR REPLACE FUNCTION atualizar_contadores_sessao()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE sessoes_simulado
+        SET
+            total_questoes = total_questoes + 1,
+            total_acertos  = total_acertos + (CASE WHEN NEW.acertou THEN 1 ELSE 0 END)
+        WHERE id = NEW.sessao_id;
+ 
+    ELSIF (TG_OP = 'UPDATE') THEN
+        UPDATE sessoes_simulado
+        SET
+            total_acertos = total_acertos
+                          - (CASE WHEN OLD.acertou THEN 1 ELSE 0 END)
+                          + (CASE WHEN NEW.acertou THEN 1 ELSE 0 END)
+        WHERE id = NEW.sessao_id;
+ 
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE sessoes_simulado
+        SET
+            total_questoes = total_questoes - 1,
+            total_acertos  = total_acertos - (CASE WHEN OLD.acertou THEN 1 ELSE 0 END)
+        WHERE id = OLD.sessao_id;
+    END IF;
+ 
+    RETURN NULL;
+END;
+$$;
+ 
+CREATE TRIGGER on_resposta_inserida
+    AFTER INSERT OR UPDATE OR DELETE ON respostas_alunos
+    FOR EACH ROW EXECUTE FUNCTION atualizar_contadores_sessao();
+
+-- ROW LEVEL SECURITY
+ALTER TABLE perfis           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE escolas          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE matriculas       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questoes         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessoes_simulado ENABLE ROW LEVEL SECURITY;
+ALTER TABLE respostas_alunos ENABLE ROW LEVEL SECURITY;
+
+
+-- Função auxiliar: papel do usuário logado
+CREATE OR REPLACE FUNCTION papel_atual()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT papel FROM perfis WHERE id = auth.uid();
+$$;
