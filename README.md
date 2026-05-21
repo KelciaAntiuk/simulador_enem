@@ -2,7 +2,7 @@
 simulador enem b2b2c
 
 Grupo:
-Mateus Zevianni
-Julian Alves
-Kélcia Kohls
+Mateus Zevianni,
+Julian Alves,
+Kélcia Kohls e
 Luiz Henrique
